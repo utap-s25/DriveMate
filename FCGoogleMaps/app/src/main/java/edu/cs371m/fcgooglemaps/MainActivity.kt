@@ -29,110 +29,150 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.*
+import java.util.Locale
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
+class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
-class MainActivity
-    : AppCompatActivity(),
-    OnMapReadyCallback
-{
     private lateinit var map: GoogleMap
     private lateinit var geocoder: Geocoder
     private var locationPermissionGranted = false
     private lateinit var binding: ContentMainBinding
 
-    //https://stackoverflow.com/questions/48552925/existing-3-function-callback-to-kotlin-coroutines/48562175#48562175
+    // Use a suspend function to get addresses from location name (Android 33+)
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private suspend fun getAddresses(query: String): List<Address> = suspendCoroutine { cont ->
-        geocoder.getFromLocationName(query, 1) {
-            cont.resume(it)
+        geocoder.getFromLocationName(query, 1) { addresses ->
+            cont.resume(addresses)
         }
     }
 
     private suspend fun processAddresses(addresses: List<Address>) {
-        // XXX Write me.  Note: suspend fun, so withContext is wise.  move the camera
+        // If we found an address, move the camera to its lat/long
+        withContext(Dispatchers.Main) {
+            if (addresses.isNotEmpty()) {
+                val lat = addresses[0].latitude
+                val lng = addresses[0].longitude
+                val latLng = LatLng(lat, lng)
+                map.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15f))
+            } else {
+                Toast.makeText(
+                    this@MainActivity,
+                    "No matching address found",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
     }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         val activityMainBinding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(activityMainBinding.root)
         setSupportActionBar(activityMainBinding.toolbar)
+
         binding = activityMainBinding.contentMain
 
+        // Check Google Play Services and request permissions
         checkGooglePlayServices()
         requestPermission()
-        // Unfortunately, adding a map requires using the supportFragmentManager
-        // https://developers.google.com/maps/documentation/android-sdk/map#to_add_a_map
+
+        // Load the map, get its async reference
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.mapFrag) as SupportMapFragment
-        // XXX Write me.  Load the map (async) and create Geocoder
+        mapFragment.getMapAsync(this)
+
+        // Create Geocoder
+        geocoder = Geocoder(this, Locale.getDefault())
+
+        // "Go" button logic
         binding.goBut.setOnClickListener {
             val locationName = binding.mapET.text.toString()
-            Log.d("Geocoding ", locationName)
-            // call getFromLocationName on a background thread
-            if (Build.VERSION.SDK_INT >= 33) {
-                // Use this function, with a lambda for the Geocoder.GeocodeListener
-                // https://developer.android.com/reference/android/location/Geocoder#getFromLocationName(java.lang.String,%20int,%20android.location.Geocoder.GeocodeListener)
-                // MainScope().launch is your friend.
-                // XXX Write me
+            Log.d("Geocoding", "Requesting location for: $locationName")
+
+            // If we’re on Android 33 or above, we can use the new API
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                MainScope().launch {
+                    val addresses = getAddresses(locationName)
+                    processAddresses(addresses)
+                }
             } else {
-                // Use the deprecated API
-                // https://developer.android.com/reference/android/location/Geocoder#getFromLocationName(java.lang.String,%20int)
-                // Launch the coroutine first and call getFromLocationName inside the coroutine
-                // XXX Write me
+                // Use the (deprecated) blocking call on older devices
+                MainScope().launch(Dispatchers.IO) {
+                    val addresses = geocoder.getFromLocationName(locationName, 1)
+                    if (addresses != null) {
+                        processAddresses(addresses)
+                    } else {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                this@MainActivity,
+                                "No matching address found",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                }
             }
         }
 
-        // This code is correct, but it assumes an EditText in your layout
-        // called mapET and a go button called goBut
-        binding.mapET.setOnEditorActionListener { /*v*/_, actionId, event ->
-            // If user has pressed enter, or if they hit the soft keyboard "send" button
-            // (which sends DONE because of the XML)
+        // Let the user hit "Enter" to trigger geocoding
+        binding.mapET.setOnEditorActionListener { _, actionId, event ->
             if ((event != null
-                        &&(event.action == KeyEvent.ACTION_DOWN)
-                        &&(event.keyCode == KeyEvent.KEYCODE_ENTER))
-                || (actionId == EditorInfo.IME_ACTION_DONE)) {
+                        && (event.action == KeyEvent.ACTION_DOWN)
+                        && (event.keyCode == KeyEvent.KEYCODE_ENTER))
+                || (actionId == EditorInfo.IME_ACTION_DONE)
+            ) {
                 hideKeyboard()
                 binding.goBut.callOnClick()
             }
             false
         }
+
+        // Clear button: remove all markers
+        binding.clearBut.setOnClickListener {
+            map.clear()
+        }
     }
-    /**
-     * Manipulates the map once available.
-     * This callback is triggered when the map is ready to be used.
-     * This is where we can add markers or lines, add listeners or move the camera. In this case,
-     * we just add a marker near Sydney, Australia.
-     * If Google Play services is not installed on the device, the user will be prompted to install
-     * it inside the SupportMapFragment. This method will only be triggered once the user has
-     * installed Google Play services and returned to the app.
-     */
+
     override fun onMapReady(googleMap: GoogleMap) {
         map = googleMap
-        if( locationPermissionGranted ) {
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION
-                ) != PackageManager.PERMISSION_GRANTED
-                && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION
-                ) != PackageManager.PERMISSION_GRANTED
+
+        // If location permissions are granted, enable the My Location features
+        if (locationPermissionGranted) {
+            if (ActivityCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
             ) {
-                // We put this here to satisfy the compiler, which wants to know we checked
-                // permissions before setting isMyLocationEnabled
-                return
+                map.isMyLocationEnabled = true
+                map.uiSettings.isMyLocationButtonEnabled = true
             }
-            // XXX Write me.
         }
 
-        // XXX Write me.
-        // Start the map at the Harry Ransom center
+        // Start the map at the Harry Ransom Center in Austin
+        val ransomCenter = LatLng(30.2849, -97.7413)
+        map.moveCamera(CameraUpdateFactory.newLatLngZoom(ransomCenter, 15f))
+
+        // Tapping the map adds a marker with lat/long to 3 decimal places
+        map.setOnMapClickListener { latLng ->
+            val title = String.format(
+                Locale.getDefault(),
+                "%.3f, %.3f",
+                latLng.latitude,
+                latLng.longitude
+            )
+            map.addMarker(MarkerOptions().position(latLng).title(title))
+        }
+
+        // Long click clears all markers
+        map.setOnMapLongClickListener {
+            map.clear()
+        }
     }
 
-    // Everything below here is correct
-
-    // An Android nightmare
-    // https://stackoverflow.com/questions/1109022/close-hide-the-android-soft-keyboard
-    // https://stackoverflow.com/questions/7789514/how-to-get-activitys-windowtoken-without-view
+    // Hides the software keyboard
     private fun hideKeyboard() {
         val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
         imm.hideSoftInputFromWindow(window.decorView.rootView.windowToken, 0)
@@ -140,14 +180,12 @@ class MainActivity
 
     private fun checkGooglePlayServices() {
         val googleApiAvailability = GoogleApiAvailability.getInstance()
-        val resultCode =
-            googleApiAvailability.isGooglePlayServicesAvailable(this)
+        val resultCode = googleApiAvailability.isGooglePlayServicesAvailable(this)
         if (resultCode != ConnectionResult.SUCCESS) {
             if (googleApiAvailability.isUserResolvableError(resultCode)) {
                 googleApiAvailability.getErrorDialog(this, resultCode, 257)?.show()
             } else {
-                Log.i(javaClass.simpleName,
-                    "This device must install Google Play Services.")
+                Log.i(javaClass.simpleName, "This device must install Google Play Services.")
                 finish()
             }
         }
@@ -160,14 +198,16 @@ class MainActivity
             when {
                 permissions.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false) -> {
                     locationPermissionGranted = true
-                } else -> {
-                Toast.makeText(this,
-                    "Unable to show location - permission required",
-                    Toast.LENGTH_LONG).show()
-            }
+                }
+                else -> {
+                    Toast.makeText(
+                        this,
+                        "Unable to show location - permission required",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
             }
         }
         locationPermissionRequest.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION))
     }
 }
-

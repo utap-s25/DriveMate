@@ -9,7 +9,6 @@
    Once you have your key (it starts with "AIza"), place it in the string resource.
    -->
     <string name="google_maps_key" templateMergeStrategy="preserve" translatable="false">
-        <!-- Please get your own API key from Google and copy it here. -->
-        <!-- See above directions and course videos -->
+        AIzaSyBu3dTpQeTAO-pYT3-hVofmYQL-_Y6Zxak
     </string>
 </resources>
