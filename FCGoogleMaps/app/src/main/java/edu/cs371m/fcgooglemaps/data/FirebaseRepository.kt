@@ -97,6 +97,15 @@ object FirebaseRepository {
             .await()
     }
 
+    suspend fun deletePost(postId: String): Result<Void> = runCatching {
+        // delete all images under postImages/{postId}/
+        val list = storageRef.child("postImages/$postId").listAll().await()
+        list.items.forEach { it.delete().await() }
+
+        // delete the Firestore document
+        postsCol().document(postId).delete().await()
+    }
+
     /** Listen to all posts in descending order */
     fun listenToPosts(
         onUpdate: (List<Post>) -> Unit

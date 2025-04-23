@@ -11,6 +11,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import edu.cs371m.fcgooglemaps.data.FirebaseRepository
@@ -23,7 +24,7 @@ class ProfileFragment : Fragment() {
     private val binding get() = _binding!!
     private var postsListener: ListenerRegistration? = null
 
-    // 1. Image picker
+    // image‐picker launcher
     private val pickPic = registerForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -31,7 +32,9 @@ class ProfileFragment : Fragment() {
     }
 
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
     ): View {
         _binding = FragmentProfileBinding.inflate(inflater, container, false)
         return binding.root
@@ -39,26 +42,24 @@ class ProfileFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        val user = FirebaseRepository.currentUser ?: return
-        val uid = user.uid
 
-        // Show email
-        binding.tvEmail.text = user.email
+        val viewer = FirebaseRepository.currentUser ?: return
+        val viewerUid = viewer.uid
 
-        // Load profile fields once
+        // Always show email for now
+        binding.tvEmail.text = viewer.email
+        binding.tvEmail.visibility = View.VISIBLE
+
+        // Load your own profile data
         lifecycleScope.launch {
-            FirebaseRepository.getUserProfile(uid)
+            FirebaseRepository.getUserProfile(viewerUid)
                 .onSuccess { profile ->
-                    // Bio
                     binding.tvBio.text = profile.bio.ifEmpty { "No bio set" }
-                    // Car
                     val v = profile.vehicle
-                    binding.tvCar.text =
-                        if (v.year > 0 && v.make.isNotEmpty() && v.model.isNotEmpty())
-                            "${v.year} ${v.make} ${v.model}"
-                        else
-                            "No car set"
-                    // Profile picture
+                    binding.tvCar.text = if (v.year > 0 && v.make.isNotEmpty() && v.model.isNotEmpty())
+                        "${v.year} ${v.make} ${v.model}"
+                    else
+                        "No car set"
                     if (profile.profilePicUrl.isNotEmpty()) {
                         Glide.with(this@ProfileFragment)
                             .load(profile.profilePicUrl)
@@ -68,17 +69,28 @@ class ProfileFragment : Fragment() {
                 }
         }
 
-        // My Posts RecyclerView
-        val adapter = PostAdapter { postId ->
-            lifecycleScope.launch { FirebaseRepository.toggleLike(postId) }
-        }
+        // Set up RecyclerView to show ALL posts (no filter)
+        val adapter = PostAdapter(
+            onLikeToggle = { postId ->
+                lifecycleScope.launch { FirebaseRepository.toggleLike(postId) }
+            },
+            onDelete = { postId ->
+                lifecycleScope.launch { FirebaseRepository.deletePost(postId) }
+            },
+            onUserClick = { uid ->
+                if (uid != viewerUid) {
+                    findNavController().navigate(
+                        R.id.profileFragment,
+                        Bundle().apply { putString("userId", uid) }
+                    )
+                }
+            }
+        )
         binding.rvMyPosts.layoutManager = LinearLayoutManager(requireContext())
         binding.rvMyPosts.adapter = adapter
 
-        // Listen only to this user's posts
-        postsListener = FirebaseRepository
-            .postsCol()
-            .whereEqualTo("userId", uid)
+        // Listen to ALL posts for debugging
+        postsListener = FirebaseRepository.postsCol()
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snaps, _ ->
                 val list = snaps
@@ -89,29 +101,32 @@ class ProfileFragment : Fragment() {
             }
 
         // Buttons
+
         binding.btnChangePic.setOnClickListener { pickPic.launch("image/*") }
+
         binding.btnEditProfile.setOnClickListener {
             findNavController().navigate(R.id.editProfileFragment)
         }
         binding.btnEditCar.setOnClickListener {
             findNavController().navigate(R.id.editCarFragment)
         }
+        binding.btnLogout.setOnClickListener {
+            FirebaseAuth.getInstance().signOut()
+            findNavController().navigate(R.id.loginFragment)
+        }
+
     }
 
-    /** Handle a newly picked profile picture */
     private fun onProfilePicPicked(uri: Uri) {
-        // 1) Show it immediately
         Glide.with(this)
             .load(uri)
             .circleCrop()
             .into(binding.ivProfilePic)
 
-        // 2) Upload & persist
         val uid = FirebaseRepository.currentUser!!.uid
         lifecycleScope.launch {
             FirebaseRepository.uploadProfileImage(uid, uri)
                 .onSuccess { url ->
-                    // update only that field
                     FirebaseRepository.updateProfilePicture(uid, url)
                 }
         }

@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
@@ -26,11 +27,17 @@ class FeedFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         // 1) Setup RecyclerView + Adapter
-        adapter = PostAdapter { postId ->
-            lifecycleScope.launch {
-                FirebaseRepository.toggleLike(postId)
+        adapter = PostAdapter(
+            onLikeToggle = { pid -> lifecycleScope.launch { FirebaseRepository.toggleLike(pid) } },
+            onDelete     = { pid -> lifecycleScope.launch { FirebaseRepository.deletePost(pid) } },
+            onUserClick  = { userId ->
+                findNavController().navigate(
+                    R.id.profileFragment,
+                    bundleOf("userId" to userId)
+                )
             }
-        }
+        )
+
         binding.rvPosts.layoutManager = LinearLayoutManager(requireContext())
         binding.rvPosts.adapter = adapter
 

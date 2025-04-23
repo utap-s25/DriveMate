@@ -22,12 +22,26 @@
             android:background="@drawable/circle_background"
             android:padding="4dp"/>
 
+        <!-- Change Picture (primary style) -->
         <Button
             android:id="@+id/btnChangePic"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Change Picture"
-            android:layout_marginTop="8dp"/>
+            android:layout_marginTop="16dp"
+            android:backgroundTint="@color/colorPrimary"
+            android:textColor="@android:color/white"
+            android:padding="12dp"
+            android:textAllCaps="false"/>
+
+        <!-- new logout icon button -->
+        <ImageButton
+            android:id="@+id/btnLogout"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:src="@drawable/ic_logout"
+            android:background="?attr/selectableItemBackgroundBorderless" />
 
         <!-- Email (immutable) -->
         <TextView
@@ -36,7 +50,7 @@
             android:layout_height="wrap_content"
             android:textStyle="bold"
             android:textSize="16sp"
-            android:layout_marginTop="16dp"/>
+            android:layout_marginTop="24dp"/>
 
         <!-- Car details -->
         <TextView
@@ -54,7 +68,7 @@
             android:hint="No bio set"
             android:layout_marginTop="8dp"/>
 
-        <!-- Edit buttons -->
+        <!-- Edit buttons (inline primary style) -->
         <LinearLayout
             android:orientation="horizontal"
             android:layout_marginTop="16dp"
@@ -67,7 +81,11 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Edit Bio"/>
+                android:text="Edit Bio"
+                android:backgroundTint="@color/colorPrimary"
+                android:textColor="@android:color/white"
+                android:padding="12dp"
+                android:textAllCaps="false"/>
 
             <Button
                 android:id="@+id/btnEditCar"
@@ -75,7 +93,11 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="Edit Car"
-                android:layout_marginStart="8dp"/>
+                android:layout_marginStart="8dp"
+                android:backgroundTint="@color/colorPrimary"
+                android:textColor="@android:color/white"
+                android:padding="12dp"
+                android:textAllCaps="false"/>
         </LinearLayout>
 
         <!-- Divider -->

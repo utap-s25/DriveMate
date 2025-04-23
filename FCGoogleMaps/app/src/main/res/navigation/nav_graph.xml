@@ -47,11 +47,17 @@
             android:name="edu.cs371m.fcgooglemaps.NotificationsFragment"/>
         <fragment
             android:id="@+id/profileFragment"
-            android:name="edu.cs371m.fcgooglemaps.ProfileFragment">
+            android:name="edu.cs371m.fcgooglemaps.ProfileFragment"
+            android:label="Profile">
+            <argument
+                android:name="userId"
+                app:argType="string"
+                android:defaultValue="@null" />
             <action
                 android:id="@+id/action_profile_to_editCar"
                 app:destination="@id/editCarFragment"/>
         </fragment>
+
 
         <fragment
             android:id="@+id/createPostFragment"
