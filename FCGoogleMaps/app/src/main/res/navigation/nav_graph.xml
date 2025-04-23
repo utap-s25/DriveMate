@@ -59,5 +59,12 @@
         <fragment
             android:id="@+id/editCarFragment"
             android:name="edu.cs371m.fcgooglemaps.EditCarFragment"/>
+
+        <fragment
+            android:id="@+id/editProfileFragment"
+            android:name="edu.cs371m.fcgooglemaps.EditProfileFragment"
+            android:label="Edit Profile"/>
+
     </navigation>
+
 </navigation>
