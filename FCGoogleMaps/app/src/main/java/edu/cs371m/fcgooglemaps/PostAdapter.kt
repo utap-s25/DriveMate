@@ -48,7 +48,9 @@ class PostAdapter(
             }
 
             Glide.with(b.root).load(p.imageUrl).into(b.ivPost)
-            b.tvLocation.text = "${p.location.latitude}, ${p.location.longitude}"
+            b.tvLocation.text = p.placeName.ifEmpty {
+                "${p.location.latitude}, ${p.location.longitude}"
+            }
             b.tvCaption.text = p.caption
             b.tvLikeCount.text = p.likeCount.toString()
 

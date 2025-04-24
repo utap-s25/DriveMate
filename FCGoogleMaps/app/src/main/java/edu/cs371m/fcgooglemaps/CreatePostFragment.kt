@@ -93,7 +93,7 @@ class CreatePostFragment : Fragment() {
                 else -> {
                     // Create post
                     lifecycleScope.launch {
-                        FirebaseRepository.createPost(uri, cap, loc)
+                        FirebaseRepository.createPost(uri, cap, loc, requireContext())
                             .onSuccess {
                                 findNavController().popBackStack()
                             }

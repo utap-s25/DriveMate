@@ -14,39 +14,22 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
-            <EditText
-                android:id="@+id/etMake"
-                android:hint="Make"
+            <Spinner
+                android:id="@+id/spinnerYear"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"/>
+                android:layout_height="wrap_content" />
 
-            <EditText
-                android:id="@+id/etModel"
-                android:hint="Model"
+            <Spinner
+                android:id="@+id/spinnerMake"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"/>
+                android:layout_marginTop="8dp" />
 
-            <EditText
-                android:id="@+id/etYear"
-                android:hint="Year"
-                android:inputType="number"
+            <Spinner
+                android:id="@+id/spinnerModel"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"/>
-
-            <EditText
-                android:id="@+id/etVin"
-                android:hint="VIN"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"/>
-
-<!--            <TextView-->
-<!--                android:text="Estimated Value: $____"-->
-<!--                android:layout_marginTop="12dp"-->
-<!--                android:layout_width="wrap_content"-->
-<!--                android:layout_height="wrap_content"/>-->
+                android:layout_marginTop="8dp" />
 
             <Button
                 android:id="@+id/btnSaveCar"

@@ -112,20 +112,38 @@ class ProfileFragment : Fragment() {
         FirebaseRepository.postsCol()
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snaps, _ ->
-                val rawList = snaps?.documents
-                    ?.mapNotNull { it.toObject(Post::class.java) }
-                    ?.filter { it.userId == profileUid }
-                    ?: emptyList()
+            val allDocs = snaps?.documents ?: emptyList()
+            val rawList = mutableListOf<Post>()
 
-                // Add this coroutine to update liked state for each post
-                lifecycleScope.launch {
-                    val updatedList = rawList.map { post ->
-                        val liked = FirebaseRepository.isPostLiked(post.postId)
-                        post.copy(liked = liked)
+            for (doc in allDocs) {
+                try {
+                    val post = doc.toObject(Post::class.java)
+                    if (post != null) {
+                        rawList.add(post)
+                    } else {
+                        android.util.Log.w("ProfilePosts", "Null post for doc ${doc.id}")
                     }
-                    adapter.submitList(updatedList)
+                } catch (e: Exception) {
+                    android.util.Log.e("ProfilePosts", "Failed to parse doc ${doc.id}", e)
                 }
             }
+
+            android.util.Log.d("ProfilePosts", "Loaded ${rawList.size} posts from ${allDocs.size} docs")
+                val filtered = rawList.filter { it.userId == profileUid }
+                android.util.Log.d("ProfilePosts", "Filtered ${filtered.size} posts from ${allDocs.size} docs")
+
+                lifecycleScope.launch {
+                val updated = filtered.map { post ->
+                    val liked = FirebaseRepository.isPostLiked(post.postId)
+                    post.copy(liked = liked)
+                }
+                android.util.Log.d("ProfilePosts", "Filtered ${filtered.size} posts from ${allDocs.size} docs")
+
+                adapter.submitList(updated)
+            }
+        }
+
+
 
         // Only allow your own profile interactions
         binding.btnChangePic.setOnClickListener {

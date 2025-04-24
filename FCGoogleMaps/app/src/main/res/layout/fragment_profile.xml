@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView
+<androidx.core.widget.NestedScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="24dp">
+    android:padding="24dp"
+    android:fillViewport="true">
 
     <LinearLayout
         android:orientation="vertical"
@@ -22,7 +23,7 @@
             android:background="@drawable/circle_background"
             android:padding="4dp"/>
 
-        <!-- Change Picture (primary style) -->
+        <!-- Change Picture -->
         <Button
             android:id="@+id/btnChangePic"
             android:layout_width="match_parent"
@@ -34,7 +35,7 @@
             android:padding="12dp"
             android:textAllCaps="false"/>
 
-        <!-- new logout icon button -->
+        <!-- Logout Icon -->
         <ImageButton
             android:id="@+id/btnLogout"
             android:layout_width="wrap_content"
@@ -43,7 +44,7 @@
             android:src="@drawable/ic_logout"
             android:background="?attr/selectableItemBackgroundBorderless" />
 
-        <!-- Email (immutable) -->
+        <!-- Email -->
         <TextView
             android:id="@+id/tvEmail"
             android:layout_width="wrap_content"
@@ -68,7 +69,7 @@
             android:hint="No bio set"
             android:layout_marginTop="8dp"/>
 
-        <!-- Edit buttons (inline primary style) -->
+        <!-- Edit buttons -->
         <LinearLayout
             android:orientation="horizontal"
             android:layout_marginTop="16dp"
@@ -115,11 +116,12 @@
             android:textStyle="bold"
             android:textSize="16sp"/>
 
+        <!-- Posts RecyclerView -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvMyPosts"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:nestedScrollingEnabled="false"/>
-
+            android:nestedScrollingEnabled="false"
+            android:overScrollMode="never"/>
     </LinearLayout>
-</ScrollView>
+</androidx.core.widget.NestedScrollView>

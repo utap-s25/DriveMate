@@ -11,7 +11,6 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import edu.cs371m.fcgooglemaps.data.FirebaseRepository
 import edu.cs371m.fcgooglemaps.databinding.FragmentFeedBinding
-import edu.cs371m.fcgooglemaps.model.Post
 import kotlinx.coroutines.launch
 
 class FeedFragment : Fragment() {
@@ -63,6 +62,7 @@ class FeedFragment : Fragment() {
                     val liked = FirebaseRepository.isPostLiked(it.postId)
                     it.copy(liked = liked)
                 }
+                binding.tvEmptyFeed.visibility = if (updated.isEmpty()) View.VISIBLE else View.GONE
                 adapter.submitList(updated)
             }
         }

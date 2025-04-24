@@ -1,5 +1,7 @@
 package edu.cs371m.fcgooglemaps.data
 
+import android.content.Context
+import android.location.Geocoder
 import android.net.Uri
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
@@ -73,28 +75,33 @@ object FirebaseRepository {
     suspend fun createPost(
         imageUri: Uri,
         caption: String,
-        location: com.google.firebase.firestore.GeoPoint
+        location: GeoPoint,
+        context: Context // Pass context from the activity/fragment
     ): Result<Void> = runCatching {
         val uid = currentUser!!.uid
-        // 1) Upload image
+
         val postId = postsCol().document().id
         val imgRef = storageRef.child("postImages/$postId/${imageUri.lastPathSegment}")
         imgRef.putFile(imageUri).await()
         val imageUrl = imgRef.downloadUrl.await().toString()
 
-        // 2) Save post doc
+        // 👇 Reverse geocode to get place name
+        val geocoder = Geocoder(context)
+        val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+        val placeName = addresses?.firstOrNull()?.getAddressLine(0) ?: "Unknown location"
+
         val post = Post(
-            postId   = postId,
-            userId   = uid,
+            postId = postId,
+            userId = uid,
             imageUrl = imageUrl,
-            caption  = caption,
+            caption = caption,
             location = location,
-            createdAt= Timestamp.now(),
-            likeCount= 0L
+            placeName = placeName,
+            createdAt = Timestamp.now(),
+            likeCount = 0L
         )
-        postsCol().document(postId)
-            .set(post)
-            .await()
+
+        postsCol().document(postId).set(post).await()
     }
 
     suspend fun deletePost(postId: String): Result<Void> = runCatching {
