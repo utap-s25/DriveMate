@@ -10,5 +10,6 @@ data class Post(
     val caption: String = "",
     val location: GeoPoint = GeoPoint(0.0, 0.0),
     val createdAt: Timestamp? = null,
-    val likeCount: Long = 0L
+    val likeCount: Long = 0L,
+    val liked: Boolean = false  // 👈 new
 )

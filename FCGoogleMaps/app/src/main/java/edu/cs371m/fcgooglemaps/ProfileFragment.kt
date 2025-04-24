@@ -23,6 +23,7 @@ class ProfileFragment : Fragment() {
     private var _binding: FragmentProfileBinding? = null
     private val binding get() = _binding!!
     private var postsListener: ListenerRegistration? = null
+    private lateinit var adapter: PostAdapter
 
     // image‐picker launcher
     private val pickPic = registerForActivityResult(
@@ -44,22 +45,23 @@ class ProfileFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         val viewer = FirebaseRepository.currentUser ?: return
-        val viewerUid = viewer.uid
+        val profileUid = arguments?.getString("userId") ?: viewer.uid
+        val isOwnProfile = profileUid == viewer.uid
 
-        // Always show email for now
+        // Show email only if it's your own profile
         binding.tvEmail.text = viewer.email
-        binding.tvEmail.visibility = View.VISIBLE
+        binding.tvEmail.visibility = if (isOwnProfile) View.VISIBLE else View.GONE
 
-        // Load your own profile data
+        // Load profile info
         lifecycleScope.launch {
-            FirebaseRepository.getUserProfile(viewerUid)
+            FirebaseRepository.getUserProfile(profileUid)
                 .onSuccess { profile ->
                     binding.tvBio.text = profile.bio.ifEmpty { "No bio set" }
                     val v = profile.vehicle
                     binding.tvCar.text = if (v.year > 0 && v.make.isNotEmpty() && v.model.isNotEmpty())
                         "${v.year} ${v.make} ${v.model}"
-                    else
-                        "No car set"
+                    else "No car set"
+
                     if (profile.profilePicUrl.isNotEmpty()) {
                         Glide.with(this@ProfileFragment)
                             .load(profile.profilePicUrl)
@@ -69,16 +71,33 @@ class ProfileFragment : Fragment() {
                 }
         }
 
-        // Set up RecyclerView to show ALL posts (no filter)
-        val adapter = PostAdapter(
-            onLikeToggle = { postId ->
-                lifecycleScope.launch { FirebaseRepository.toggleLike(postId) }
+        // Hide edit/logout buttons if not own profile
+        binding.btnLogout.visibility = if (isOwnProfile) View.VISIBLE else View.GONE
+        binding.btnEditProfile.visibility = if (isOwnProfile) View.VISIBLE else View.GONE
+        binding.btnEditCar.visibility = if (isOwnProfile) View.VISIBLE else View.GONE
+        binding.btnChangePic.visibility = if (isOwnProfile) View.VISIBLE else View.GONE
+
+        // Set up posts adapter
+        lateinit var adapter: PostAdapter
+        adapter = PostAdapter(
+            onLikeToggle = { post ->
+                lifecycleScope.launch {
+                    val liked = FirebaseRepository.toggleLike(post.postId)
+                    val updated = post.copy(
+                        liked = liked,
+                        likeCount = if (liked) post.likeCount + 1 else post.likeCount - 1
+                    )
+                    val newList = adapter.currentList.map {
+                        if (it.postId == post.postId) updated else it
+                    }
+                    adapter.submitList(newList)
+                }
             },
             onDelete = { postId ->
                 lifecycleScope.launch { FirebaseRepository.deletePost(postId) }
             },
             onUserClick = { uid ->
-                if (uid != viewerUid) {
+                if (uid != viewer.uid) {
                     findNavController().navigate(
                         R.id.profileFragment,
                         Bundle().apply { putString("userId", uid) }
@@ -89,32 +108,42 @@ class ProfileFragment : Fragment() {
         binding.rvMyPosts.layoutManager = LinearLayoutManager(requireContext())
         binding.rvMyPosts.adapter = adapter
 
-        // Listen to ALL posts for debugging
-        postsListener = FirebaseRepository.postsCol()
+        // Filter posts by the profile being viewed
+        FirebaseRepository.postsCol()
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snaps, _ ->
-                val list = snaps
-                    ?.documents
+                val rawList = snaps?.documents
                     ?.mapNotNull { it.toObject(Post::class.java) }
+                    ?.filter { it.userId == profileUid }
                     ?: emptyList()
-                adapter.submitList(list)
+
+                // Add this coroutine to update liked state for each post
+                lifecycleScope.launch {
+                    val updatedList = rawList.map { post ->
+                        val liked = FirebaseRepository.isPostLiked(post.postId)
+                        post.copy(liked = liked)
+                    }
+                    adapter.submitList(updatedList)
+                }
             }
 
-        // Buttons
-
-        binding.btnChangePic.setOnClickListener { pickPic.launch("image/*") }
+        // Only allow your own profile interactions
+        binding.btnChangePic.setOnClickListener {
+            if (isOwnProfile) pickPic.launch("image/*")
+        }
 
         binding.btnEditProfile.setOnClickListener {
             findNavController().navigate(R.id.editProfileFragment)
         }
+
         binding.btnEditCar.setOnClickListener {
             findNavController().navigate(R.id.editCarFragment)
         }
+
         binding.btnLogout.setOnClickListener {
             FirebaseAuth.getInstance().signOut()
             findNavController().navigate(R.id.loginFragment)
         }
-
     }
 
     private fun onProfilePicPicked(uri: Uri) {

@@ -11,6 +11,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import edu.cs371m.fcgooglemaps.data.FirebaseRepository
 import edu.cs371m.fcgooglemaps.databinding.FragmentFeedBinding
+import edu.cs371m.fcgooglemaps.model.Post
 import kotlinx.coroutines.launch
 
 class FeedFragment : Fragment() {
@@ -26,11 +27,26 @@ class FeedFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // 1) Setup RecyclerView + Adapter
         adapter = PostAdapter(
-            onLikeToggle = { pid -> lifecycleScope.launch { FirebaseRepository.toggleLike(pid) } },
-            onDelete     = { pid -> lifecycleScope.launch { FirebaseRepository.deletePost(pid) } },
-            onUserClick  = { userId ->
+            onLikeToggle = { post ->
+                lifecycleScope.launch {
+                    val liked = FirebaseRepository.toggleLike(post.postId)
+
+                    val updated = post.copy(
+                        liked = liked,
+                        likeCount = if (liked) post.likeCount + 1 else post.likeCount - 1
+                    )
+
+                    val newList = adapter.currentList.map {
+                        if (it.postId == post.postId) updated else it
+                    }
+                    adapter.submitList(newList)
+                }
+            },
+            onDelete = { pid ->
+                lifecycleScope.launch { FirebaseRepository.deletePost(pid) }
+            },
+            onUserClick = { userId ->
                 findNavController().navigate(
                     R.id.profileFragment,
                     bundleOf("userId" to userId)
@@ -41,12 +57,16 @@ class FeedFragment : Fragment() {
         binding.rvPosts.layoutManager = LinearLayoutManager(requireContext())
         binding.rvPosts.adapter = adapter
 
-        // 2) Listen to posts updates
         FirebaseRepository.listenToPosts { posts ->
-            adapter.submitList(posts)
+            lifecycleScope.launch {
+                val updated = posts.map {
+                    val liked = FirebaseRepository.isPostLiked(it.postId)
+                    it.copy(liked = liked)
+                }
+                adapter.submitList(updated)
+            }
         }
 
-        // 3) Navigate to CreatePost
         binding.fabCreatePost.setOnClickListener {
             findNavController().navigate(R.id.createPostFragment)
         }

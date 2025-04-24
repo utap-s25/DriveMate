@@ -131,22 +131,30 @@ object FirebaseRepository {
                 .get().await().exists()
         }.getOrDefault(false)
 
-    suspend fun toggleLike(postId: String): Result<Transaction> = runCatching {
+    suspend fun toggleLike(postId: String): Boolean {
         val uid = currentUser!!.uid
         val postRef = postsCol().document(postId)
         val likeRef = likeDoc(postId, uid)
 
+        var liked = false
+
         db.runTransaction { tx ->
             val postSnap = tx.get(postRef)
             val currentCount = postSnap.getLong("likeCount") ?: 0L
+            val alreadyLiked = tx.get(likeRef).exists()
 
-            if (tx.get(likeRef).exists()) {
+            if (alreadyLiked) {
                 tx.delete(likeRef)
                 tx.update(postRef, "likeCount", currentCount - 1)
+                liked = false
             } else {
                 tx.set(likeRef, mapOf("createdAt" to FieldValue.serverTimestamp()))
                 tx.update(postRef, "likeCount", currentCount + 1)
+                liked = true
             }
         }.await()
+
+        return liked
     }
+
 }
