@@ -30,20 +30,20 @@ class FeedFragment : Fragment() {
             onLikeToggle = { post ->
                 lifecycleScope.launch {
                     val liked = FirebaseRepository.toggleLike(post.postId)
-
                     val updated = post.copy(
                         liked = liked,
                         likeCount = if (liked) post.likeCount + 1 else post.likeCount - 1
                     )
-
                     val newList = adapter.currentList.map {
                         if (it.postId == post.postId) updated else it
                     }
-                    adapter.submitList(newList)
+                    _binding?.let { it.rvPosts.adapter = adapter; adapter.submitList(newList) }
                 }
             },
             onDelete = { pid ->
-                lifecycleScope.launch { FirebaseRepository.deletePost(pid) }
+                lifecycleScope.launch {
+                    FirebaseRepository.deletePost(pid)
+                }
             },
             onUserClick = { userId ->
                 findNavController().navigate(
@@ -62,8 +62,10 @@ class FeedFragment : Fragment() {
                     val liked = FirebaseRepository.isPostLiked(it.postId)
                     it.copy(liked = liked)
                 }
-                binding.tvEmptyFeed.visibility = if (updated.isEmpty()) View.VISIBLE else View.GONE
-                adapter.submitList(updated)
+                _binding?.let {
+                    it.tvEmptyFeed.visibility = if (updated.isEmpty()) View.VISIBLE else View.GONE
+                    adapter.submitList(updated)
+                }
             }
         }
 
